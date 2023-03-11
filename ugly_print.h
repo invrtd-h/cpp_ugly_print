@@ -10,15 +10,15 @@ namespace ugly::test {
     struct unprintable {};
     
     struct has_three_members {
-        int n;
-        char c;
-        void *p;
+        [[maybe_unused]] int n;
+        [[maybe_unused]] char c;
+        [[maybe_unused]] void *p;
         
         constexpr static int mem_num = 3;
     };
     
     struct has_four_members {
-        int a, b, c, d;
+        [[maybe_unused]] int a, b, c, d;
         constexpr static int mem_num = 4;
     };
     
@@ -27,18 +27,19 @@ namespace ugly::test {
         char second;
     };
     
-    template<typename T>
+    template<typename>
     struct my_unary_pred {
         constexpr static bool value = true;
     };
     
-    template<typename T>
+    template<typename>
     struct my_unary_non_pred_1 {
         constexpr static int value = 5;
     };
     
-    template<typename T>
+    template<typename>
     struct my_unary_non_pred_2 {
+        [[maybe_unused]]
         constexpr static bool val = true;
     };
 }
@@ -53,6 +54,11 @@ namespace ugly::tmf {
     
     template<typename...>
     inline constexpr bool true_v = true;
+    
+    template<typename...>
+    struct true_t {
+        constexpr static bool value = true;
+    };
 }
 
 // is_unary_pred template meta function
@@ -85,6 +91,25 @@ namespace ugly::tmf {
     static_assert(!is_unary_pred_v<test::my_unary_non_pred_1>);
     static_assert(!is_unary_pred_v<test::my_unary_non_pred_2>);
     static_assert(is_unary_pred_v<test::my_unary_pred>);
+    
+    template<template<class> class TTP, template<class> class... TTPs>
+    struct is_all_unary_pred {
+        constexpr static bool value =
+        is_unary_pred_v<TTP> and is_all_unary_pred<TTPs...>::value;
+    };
+    
+    template<template<class> class TTP>
+    struct is_all_unary_pred<TTP> {
+        constexpr static bool value = is_unary_pred_v<TTP>;
+    };
+    
+    template<template<class> class TTP, template<class> class... TTPs>
+    inline constexpr bool is_all_unary_pred_v =
+            is_all_unary_pred<TTP, TTPs...>::value;
+    
+    static_assert(is_all_unary_pred_v<test::my_unary_pred>);
+    static_assert(!is_all_unary_pred_v<test::my_unary_pred,
+            test::my_unary_non_pred_1>);
 }
 // is_unary_pred template meta function end
 
@@ -98,18 +123,56 @@ namespace ugly::tmf::detail {
     
     template<template<class> class FirstUnaryPred>
     struct unary_predicates_enum<FirstUnaryPred> : unary_predicates_enum_base {
+        using next [[maybe_unused]] = unary_predicates_enum<true_t>;
+        
+        template<typename T>
+        using now [[maybe_unused]] = FirstUnaryPred<T>;
+    
         static_assert(is_unary_pred_v<FirstUnaryPred>,
-                "The template parameters should take one type param "
-                "and return a boolean value by ::value");
+                      "The template parameters should take one type param "
+                      "and return a boolean value by ::value");
     };
     
     template<template<class> class FirstUnaryPred,
             template<class> class... UnaryPreds>
     struct unary_predicates_enum : unary_predicates_enum_base {
-        using next = unary_predicates_enum<UnaryPreds...>;
+        using next [[maybe_unused]] = unary_predicates_enum<UnaryPreds...>;
+        
+        template<typename T>
+        using now [[maybe_unused]] = FirstUnaryPred<T>;
+    
+        static_assert(is_all_unary_pred_v<FirstUnaryPred, UnaryPreds...>,
+                      "The template parameters should take one type param "
+                      "and return a boolean value by ::value");
+    };
+}
+
+namespace ugly::tmf {
+    
+    template<template<class> class FirstUnaryPred,
+            template<class> class... UnaryPreds>
+    using unary_predicates_priorities =
+            detail::unary_predicates_enum<FirstUnaryPred, UnaryPreds...>;
+    
+    using unary_predicates_priorities_base =
+            detail::unary_predicates_enum_base;
+    
+    template<typename T, typename PredPriority>
+    struct priority_test {
+        static_assert(std::is_base_of<
+                unary_predicates_priorities_base, PredPriority
+                >::value,
+                "The 2nd template argument should be the instance type of "
+                "the template ugly::tmf::unary_predicates_priorities");
+        
+        constexpr static int priority =
+                PredPriority::template now<T>::value ? 0 :
+                priority_test<T, typename PredPriority::next>::priority + 1;
     };
     
-    unary_predicates_enum<test::my_unary_pred, test::my_unary_non_pred_1> t;
+    template<typename T, typename PredPriority>
+    inline constexpr int priority_test_v =
+            priority_test<T, PredPriority>::priority;
 }
 
 namespace ugly::tmf::detail {
@@ -130,6 +193,12 @@ namespace ugly::tmf::detail {
 }
 
 namespace ugly::tmf {
+    template<typename T>
+    struct is_printable {
+        constexpr static bool value =
+                decltype(detail::is_printable(std::declval<T>()))::value;
+    };
+    
     template<typename T>
     inline constexpr bool is_printable_v =
             decltype(detail::is_printable(std::declval<T>()))::value;
@@ -160,6 +229,12 @@ namespace ugly::tmf::detail {
 
 namespace ugly::tmf {
     template<typename T>
+    struct is_well_pair {
+        constexpr static bool value =
+                decltype(detail::is_pair(std::declval<T>()))::value;
+    };
+    
+    template<typename T>
     inline constexpr bool is_well_pair_v =
             decltype(detail::is_pair(std::declval<T>()))::value;
     
@@ -188,6 +263,12 @@ namespace ugly::tmf::detail {
 
 namespace ugly::tmf {
     template<typename T>
+    struct is_unpackable {
+        constexpr static bool value =
+                decltype(detail::is_unpackable(std::declval<T>()))::value;
+    };
+    
+    template<typename T>
     inline constexpr bool is_unpackable_t =
             decltype(detail::is_unpackable(std::declval<T>()))::value;
     
@@ -196,6 +277,30 @@ namespace ugly::tmf {
     
     template<typename T>
     inline constexpr bool priority_02 = !priority_01<T> and is_unpackable_t<T>;
+}
+
+namespace ugly::tmf {
+    using priority_set = unary_predicates_priorities<
+            is_printable,
+            is_well_pair,
+            is_unpackable
+            >;
+}
+
+namespace ugly {
+    using priority_set = tmf::priority_set;
+    
+    template<typename T>
+    struct total_priority_check {
+        constexpr static int value = tmf::priority_test_v<T, priority_set>;
+    };
+    
+    template<typename T>
+    inline constexpr int total_priority_check_v =
+            total_priority_check<T>::value;
+    
+    static_assert(total_priority_check_v<int> == 0);
+    static_assert(total_priority_check_v<std::pair<int, int>> == 1);
 }
 
 namespace ugly {
@@ -235,7 +340,7 @@ namespace ugly {
             ss << '(' << a << ", " << b << ", " << c << ')';
             return std::string{ss.str()};
         } else {
-            ss << "<object " << &t << ">";
+            ss << "<object at " << &t << ">";
             return std::string{ss.str()};
         }
     }
