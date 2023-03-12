@@ -437,15 +437,100 @@ namespace ugly {
         } else if constexpr (SIZE == 2) {
             const auto& [a, b] = t;
             ss << '('
-            << names[0] << ": " << decay_to_str(a) << ", "
-            << names[1] << ": " << decay_to_str(b) << ')';
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ')';
             return ss.str();
         } else if constexpr (SIZE == 3) {
             const auto& [a, b, c] = t;
             ss << '('
-               << names[0] << ": " << decay_to_str(a)
-               << names[1] << ": " << decay_to_str(b)
-               << names[2] << ": " << decay_to_str(c) << ')';
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ", "
+               << names[2] << ": " << decay_to_str(c)
+               << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 4) {
+            const auto& [a, b, c, d] = t;
+            ss << '('
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ", "
+               << names[2] << ": " << decay_to_str(c) << ", "
+               << names[3] << ": " << decay_to_str(d)
+               << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 5) {
+            const auto& [a, b, c, d, e] = t;
+            ss << '('
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ", "
+               << names[2] << ": " << decay_to_str(c) << ", "
+               << names[3] << ": " << decay_to_str(d) << ", "
+               << names[4] << ": " << decay_to_str(e)
+               << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 6) {
+            const auto& [a, b, c, d, e, f] = t;
+            ss << '('
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ", "
+               << names[2] << ": " << decay_to_str(c) << ", "
+               << names[3] << ": " << decay_to_str(d) << ", "
+               << names[4] << ": " << decay_to_str(e) << ", "
+               << names[5] << ": " << decay_to_str(f)
+               << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 7) {
+            const auto& [a, b, c, d, e, f, g] = t;
+            ss << '('
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ", "
+               << names[2] << ": " << decay_to_str(c) << ", "
+               << names[3] << ": " << decay_to_str(d) << ", "
+               << names[4] << ": " << decay_to_str(e) << ", "
+               << names[5] << ": " << decay_to_str(f) << ", "
+               << names[6] << ": " << decay_to_str(g)
+               << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 8) {
+            const auto& [a, b, c, d, e, f, g, h] = t;
+            ss << '('
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ", "
+               << names[2] << ": " << decay_to_str(c) << ", "
+               << names[3] << ": " << decay_to_str(d) << ", "
+               << names[4] << ": " << decay_to_str(e) << ", "
+               << names[5] << ": " << decay_to_str(f) << ", "
+               << names[6] << ": " << decay_to_str(g) << ", "
+               << names[7] << ": " << decay_to_str(h)
+               << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 9) {
+            const auto& [a, b, c, d, e, f, g, h, i] = t;
+            ss << '('
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ", "
+               << names[2] << ": " << decay_to_str(c) << ", "
+               << names[3] << ": " << decay_to_str(d) << ", "
+               << names[4] << ": " << decay_to_str(e) << ", "
+               << names[5] << ": " << decay_to_str(f) << ", "
+               << names[6] << ": " << decay_to_str(g) << ", "
+               << names[7] << ": " << decay_to_str(h) << ", "
+               << names[8] << ": " << decay_to_str(i)
+               << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 10) {
+            const auto& [a, b, c, d, e, f, g, h, i, j] = t;
+            ss << '('
+               << names[0] << ": " << decay_to_str(a) << ", "
+               << names[1] << ": " << decay_to_str(b) << ", "
+               << names[2] << ": " << decay_to_str(c) << ", "
+               << names[3] << ": " << decay_to_str(d) << ", "
+               << names[4] << ": " << decay_to_str(e) << ", "
+               << names[5] << ": " << decay_to_str(f) << ", "
+               << names[6] << ": " << decay_to_str(g) << ", "
+               << names[7] << ": " << decay_to_str(h) << ", "
+               << names[8] << ": " << decay_to_str(i) << ", "
+               << names[9] << ": " << decay_to_str(j) << ", "
+               << ')';
             return ss.str();
         }
 
