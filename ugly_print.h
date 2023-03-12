@@ -22,6 +22,15 @@ namespace ugly::test {
         constexpr static int mem_num = 4;
     };
     
+    struct my_named_tuple {
+        [[maybe_unused]] int n;
+        [[maybe_unused]] char c;
+        
+        constexpr static const char* mem_names[] = {"integer", "character"};
+    
+        static_assert(std::is_same_v<std::decay_t<decltype(mem_names)>, const char *const *>);
+    };
+    
     struct my_pair {
         int first;
         char second;
@@ -45,6 +54,9 @@ namespace ugly::test {
 }
 
 namespace ugly::tmf {
+    template<typename>
+    struct TD;
+    
     struct yes {
         constexpr static bool value = true;
     };
@@ -168,11 +180,25 @@ namespace ugly::tmf {
         constexpr static int priority =
                 PredPriority::template now<T>::value ? 0 :
                 priority_test<T, typename PredPriority::next>::priority + 1;
+        
+        static auto test() {
+            if constexpr (PredPriority::template now<T>::value) {
+                return typename PredPriority::template now<T>{};
+            } else {
+                return priority_test<T, typename PredPriority::next>::test();
+            }
+        }
+        
+        using match_type = decltype(test());
     };
     
     template<typename T, typename PredPriority>
     inline constexpr int priority_test_v =
             priority_test<T, PredPriority>::priority;
+    
+    template<typename T, typename PredPriority>
+    using priority_test_t =
+            typename priority_test<T, PredPriority>::match_type;
 }
 
 namespace ugly::tmf::detail {
@@ -242,9 +268,32 @@ namespace ugly::tmf {
     static_assert(is_well_pair_v<test::my_pair>);
     static_assert(is_well_pair_v<std::pair<int, int>>);
     static_assert(!is_well_pair_v<std::pair<int, test::unprintable>>);
+}
+
+namespace ugly::tmf::detail {
+    template<typename T>
+    inline std::enable_if_t<std::is_same_v<
+            std::decay_t<decltype(T::mem_names)>, const char *const *>,
+            yes>
+    is_named_tuple(T) {
+        return yes{};
+    }
+    
+    [[maybe_unused]]
+    inline no is_named_tuple(...) {
+        return no{};
+    }
+}
+
+namespace ugly::tmf {
+    template<typename T>
+    struct is_named_tuple {
+        constexpr static bool value =
+                decltype(detail::is_named_tuple(std::declval<T>()))::value;
+    };
     
     template<typename T>
-    inline constexpr bool priority_01 = !priority_00<T> and is_well_pair_v<T>;
+    inline constexpr bool is_named_tuple_v = is_named_tuple<T>::value;
 }
 
 namespace ugly::tmf::detail {
@@ -274,16 +323,43 @@ namespace ugly::tmf {
     
     static_assert(is_unpackable_t<test::has_three_members>);
     static_assert(!is_unpackable_t<int>);
+}
+
+namespace ugly::tmf::detail {
+    template<typename T>
+    inline std::enable_if_t<true_v<
+            decltype(std::declval<T>().begin() == std::declval<T>().end()),
+            decltype(++std::declval<T>().begin()),
+            decltype(*std::declval<T>().begin())
+            >, yes>
+    is_container(T) {
+        return yes{};
+    }
+    
+    [[maybe_unused]]
+    inline no is_container(...) {
+        return no{};
+    }
+}
+
+namespace ugly::tmf {
+    template<typename T>
+    struct is_container {
+        constexpr static bool value =
+                decltype(detail::is_container(std::declval<T>()))::value;
+    };
     
     template<typename T>
-    inline constexpr bool priority_02 = !priority_01<T> and is_unpackable_t<T>;
+    inline constexpr bool is_container_v = is_container<T>::value;
 }
 
 namespace ugly::tmf {
     using priority_set = unary_predicates_priorities<
             is_printable,
             is_well_pair,
-            is_unpackable
+            is_named_tuple,
+            is_unpackable,
+            is_container
             >;
 }
 
@@ -293,79 +369,184 @@ namespace ugly {
     template<typename T>
     struct total_priority_check {
         constexpr static int value = tmf::priority_test_v<T, priority_set>;
+        using type = tmf::priority_test_t<T, priority_set>;
     };
     
     template<typename T>
     inline constexpr int total_priority_check_v =
             total_priority_check<T>::value;
     
+    template<typename T>
+    using total_priority_check_t =
+            typename total_priority_check<T>::type;
+    
     static_assert(total_priority_check_v<int> == 0);
     static_assert(total_priority_check_v<std::pair<int, int>> == 1);
+    
+    static_assert(std::is_same_v<
+            total_priority_check_t<int>, tmf::is_printable<int>>);
+    
+    template<typename T, template<class> class P>
+    struct match_with {
+        constexpr static bool value =
+                std::is_same_v<total_priority_check_t<T>, P<T>>;
+    };
+    
+    template<typename T, template<class> class P>
+    inline constexpr bool match_with_v = match_with<T, P>::value;
 }
 
 namespace ugly {
+    
     template<typename T>
     inline auto decay_to_str(T &&t)
-    -> std::enable_if_t<tmf::priority_00<std::decay_t<T>>, std::string>
+    -> std::enable_if_t<match_with_v<T, tmf::is_printable>, std::string>
     {
         std::stringstream ss;
         ss << std::forward<T>(t);
         
-        std::string ret;
-        ss >> ret;
-        
-        return ret;
+        return ss.str();
     }
     
     template<typename T>
     inline auto decay_to_str(T &&t)
-    -> std::enable_if_t<tmf::priority_01<std::decay_t<T>>, std::string>
+    -> std::enable_if_t<match_with_v<T, tmf::is_well_pair>, std::string>
     {
         std::stringstream ss;
-        ss << '<' << t.first << ", " << t.second << '>';
+        ss << '<' << decay_to_str(t.first) << ", "
+           << decay_to_str(t.second) << '>';
         
-        std::string ret(ss.str());
-        return ret;
+        return ss.str();
     }
     
     template<typename T>
     inline auto decay_to_str(T &&t)
-    -> std::enable_if_t<tmf::priority_02<std::decay_t<T>>, std::string>
+    -> std::enable_if_t<match_with_v<T, tmf::is_named_tuple>, std::string>
     {
+        using RT = std::remove_reference_t<T>;
+        constexpr int SIZE = std::extent_v<decltype(RT::mem_names)>;
+        const auto& names = RT::mem_names;
+        
         std::stringstream ss;
-        if constexpr (T::mem_num == 0) {
+        if constexpr (SIZE == 0) {
             return std::string("()");
-        } else if constexpr (T::mem_num == 3) {
+        } else if constexpr (SIZE == 1) {
+            const auto& [a] = t;
+            ss << '(' << names[0] << ": " << decay_to_str(a) << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 2) {
+            const auto& [a, b] = t;
+            ss << '('
+            << names[0] << ": " << decay_to_str(a) << ", "
+            << names[1] << ": " << decay_to_str(b) << ')';
+            return ss.str();
+        } else if constexpr (SIZE == 3) {
             const auto& [a, b, c] = t;
-            ss << '(' << a << ", " << b << ", " << c << ')';
+            ss << '('
+               << names[0] << ": " << decay_to_str(a)
+               << names[1] << ": " << decay_to_str(b)
+               << names[2] << ": " << decay_to_str(c) << ')';
+            return ss.str();
+        }
+
+        else {
+            ss << "<object at " << &t << ">";
+            return ss.str();
+        }
+    }
+    
+    template<typename T>
+    inline auto decay_to_str(T &&t)
+    -> std::enable_if_t<match_with_v<T, tmf::is_unpackable>, std::string>
+    {
+        using RT = std::remove_reference_t<T>;
+        
+        std::stringstream ss;
+        if constexpr (RT::mem_num == 0) {
+            return std::string("()");
+        } else if constexpr (RT::mem_num == 1) {
+            const auto& [a] = t;
+            ss << '(' << decay_to_str(a) << ')';
             return std::string{ss.str()};
-        } else {
+        } else if constexpr (RT::mem_num == 2) {
+            const auto& [a, b] = t;
+            ss << '(' << decay_to_str(a) << ", " << decay_to_str(b) << ')';
+            return std::string{ss.str()};
+        } else if constexpr (RT::mem_num == 3) {
+            const auto& [a, b, c] = t;
+            ss << '(' << decay_to_str(a) << ", " << decay_to_str(b) << ", "
+                      << decay_to_str(c) << ')';
+            return std::string{ss.str()};
+        } else if constexpr (RT::mem_num == 4) {
+            const auto& [a, b, c, d] = t;
+            ss << '(' << decay_to_str(a) << ", " << decay_to_str(b) << ", "
+                      << decay_to_str(c) << ", " << decay_to_str(d) << ')';
+            return std::string{ss.str()};
+        } else if constexpr (RT::mem_num == 5) {
+            const auto& [a, b, c, d, e] = t;
+            ss << '('
+               << decay_to_str(a) << ", " << decay_to_str(b) << ", "
+               << decay_to_str(c) << ", " << decay_to_str(d) << ", "
+               << decay_to_str(e) << ")";
+            return std::string{ss.str()};
+        }
+        
+        else {
             ss << "<object at " << &t << ">";
             return std::string{ss.str()};
         }
     }
-}
-
-namespace ugly {
-    struct Printer {
-        template<typename T>
-        auto operator<<(T&& t)
-        -> std::enable_if_t<tmf::priority_00<std::decay_t<T>>, Printer&>
-        {
-            std::cout << std::forward<T>(t);
-            return *this;
-        }
     
-        template<typename T>
-        auto operator<<(T&& t)
-        -> std::enable_if_t<tmf::priority_01<std::decay_t<T>>, Printer&>
-        {
-            std::cout << '<' << t.first << ", " << t.second << '>';
-            return *this;
+    template<typename T>
+    inline auto decay_to_str(T &&t)
+    -> std::enable_if_t<match_with_v<T, tmf::is_container>, std::string>
+    {
+        std::stringstream ss;
+        ss << "[";
+        for (auto it = t.begin(); it != t.end(); ++it) {
+            ss << decay_to_str(*it) << ", ";
         }
-    };
+        
+        auto ret = ss.str();
+        ret.pop_back();
+        ret.back() = ']';
+        
+        return ret;
+    }
     
-    inline auto printer = Printer{};
+    template<typename T>
+    inline auto decay_to_str(T &&t, int head_size)
+    -> std::enable_if_t<match_with_v<T, tmf::is_container>, std::string>
+    {
+        std::stringstream ss;
+        ss << "[";
+        int i = 0;
+        auto it = t.begin();
+        for (; it != t.end() and i < head_size; ++it) {
+            ss << decay_to_str(*it) << ", ";
+            ++i;
+        }
+        
+        if (it != t.end()) {
+            ss << "...]";
+            return ss.str();
+        }
+        
+        auto ret = ss.str();
+        ret.pop_back();
+        ret.back() = ']';
+        
+        return ret;
+    }
+    
+    template<typename T>
+    inline auto decay_to_str(T &&t)
+    -> std::enable_if_t<match_with_v<T, tmf::true_t>, std::string>
+    {
+        std::stringstream ss;
+        ss << "<object at " << &t << ">";
+        return std::string{ss.str()};
+    }
 }
 
 #endif
