@@ -535,7 +535,7 @@ namespace ugly {
         }
 
         else {
-            ss << "<object at " << &t << ">";
+            ss << "<object at " << &t << " with >10 members>";
             return ss.str();
         }
     }
@@ -556,29 +556,70 @@ namespace ugly {
         } else if constexpr (RT::mem_num == 2) {
             const auto& [a, b] = t;
             ss << '(' << decay_to_str(a) << ", " << decay_to_str(b) << ')';
-            return std::string{ss.str()};
+            return ss.str();
         } else if constexpr (RT::mem_num == 3) {
             const auto& [a, b, c] = t;
             ss << '(' << decay_to_str(a) << ", " << decay_to_str(b) << ", "
                       << decay_to_str(c) << ')';
-            return std::string{ss.str()};
+            return ss.str();
         } else if constexpr (RT::mem_num == 4) {
             const auto& [a, b, c, d] = t;
             ss << '(' << decay_to_str(a) << ", " << decay_to_str(b) << ", "
                       << decay_to_str(c) << ", " << decay_to_str(d) << ')';
-            return std::string{ss.str()};
+            return ss.str();
         } else if constexpr (RT::mem_num == 5) {
             const auto& [a, b, c, d, e] = t;
             ss << '('
                << decay_to_str(a) << ", " << decay_to_str(b) << ", "
                << decay_to_str(c) << ", " << decay_to_str(d) << ", "
                << decay_to_str(e) << ")";
-            return std::string{ss.str()};
+            return ss.str();
+        } else if constexpr (RT::mem_num == 6) {
+            const auto& [a, b, c, d, e, f] = t;
+            ss << '('
+               << decay_to_str(a) << ", " << decay_to_str(b) << ", "
+               << decay_to_str(c) << ", " << decay_to_str(d) << ", "
+               << decay_to_str(e) << ", " << decay_to_str(f) << ')';
+            return ss.str();
+        } else if constexpr (RT::mem_num == 7) {
+            const auto& [a, b, c, d, e, f, g] = t;
+            ss << '('
+               << decay_to_str(a) << ", " << decay_to_str(b) << ", "
+               << decay_to_str(c) << ", " << decay_to_str(d) << ", "
+               << decay_to_str(e) << ", " << decay_to_str(f) << ", "
+               << decay_to_str(g) << ')';
+            return ss.str();
+        } else if constexpr (RT::mem_num == 8) {
+            const auto& [a, b, c, d, e, f, g, h] = t;
+            ss << '('
+               << decay_to_str(a) << ", " << decay_to_str(b) << ", "
+               << decay_to_str(c) << ", " << decay_to_str(d) << ", "
+               << decay_to_str(e) << ", " << decay_to_str(f) << ", "
+               << decay_to_str(g) << ", " << decay_to_str(h) << ')';
+            return ss.str();
+        } else if constexpr (RT::mem_num == 9) {
+            const auto& [a, b, c, d, e, f, g, h, i] = t;
+            ss << '('
+               << decay_to_str(a) << ", " << decay_to_str(b) << ", "
+               << decay_to_str(c) << ", " << decay_to_str(d) << ", "
+               << decay_to_str(e) << ", " << decay_to_str(f) << ", "
+               << decay_to_str(g) << ", " << decay_to_str(h) << ", "
+               << decay_to_str(i) << ')';
+            return ss.str();
+        } else if constexpr (RT::mem_num == 10) {
+            const auto& [a, b, c, d, e, f, g, h, i, j] = t;
+            ss << '('
+               << decay_to_str(a) << ", " << decay_to_str(b) << ", "
+               << decay_to_str(c) << ", " << decay_to_str(d) << ", "
+               << decay_to_str(e) << ", " << decay_to_str(f) << ", "
+               << decay_to_str(g) << ", " << decay_to_str(h) << ", "
+               << decay_to_str(i) << ", " << decay_to_str(j) << ')';
+            return ss.str();
         }
         
         else {
-            ss << "<object at " << &t << ">";
-            return std::string{ss.str()};
+            ss << "<object at " << &t << " with >10 members>";
+            return ss.str();
         }
     }
     
