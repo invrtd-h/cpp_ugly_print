@@ -1,5 +1,8 @@
 #include "ugly_print.h"
 
+#include <deque>
+#include <stack>
+
 struct MyStruct {
     int x, y;
     char c, d;
@@ -20,4 +23,11 @@ int main() {
     
     auto my_instance2 = MyStruct2{6, 9, "instance 2"};
     std::cout << ugly::decay_to_str(my_instance2) << '\n';
+    
+    std::stack<int> s;
+    s.push(1);
+    s.push(3);
+    s.push(9);
+    
+    std::cout << ugly::decay_to_str(s) << '\n';
 }
