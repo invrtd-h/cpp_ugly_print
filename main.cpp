@@ -3,6 +3,9 @@
 #include <deque>
 #include <stack>
 
+using ugly::dout;
+using namespace ugly::cmd;
+
 struct MyStruct {
     int x, y;
     char c, d;
@@ -17,17 +20,22 @@ struct MyStruct2 {
     constexpr static int mem_num = 3;
 };
 
+using int3 = int[3];
+void test(int3 &tt) {
+    static_assert(std::is_same_v<std::remove_reference_t<decltype(tt)>, int[3]>);
+}
+
 int main() {
     auto my_instance = MyStruct{1, 2, 'U', 'K'};
-    std::cout << ugly::decay_to_str(my_instance) << '\n';
+    dout << sep_set("\n") << my_instance;
     
     auto my_instance2 = MyStruct2{6, 9, "instance 2"};
-    std::cout << ugly::decay_to_str(my_instance2) << '\n';
+    dout << my_instance2 << '\n';
     
     std::stack<int> s;
     s.push(1);
     s.push(3);
     s.push(9);
     
-    std::cout << ugly::decay_to_str(s) << '\n';
+    dout << wrap_off << s;
 }
