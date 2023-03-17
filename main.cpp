@@ -4,7 +4,6 @@
 #include <stack>
 
 using ugly::dout;
-using namespace ugly::cmd;
 
 struct MyStruct {
     int x, y;
@@ -27,7 +26,7 @@ void test(int3 &tt) {
 
 int main() {
     auto my_instance = MyStruct{1, 2, 'U', 'K'};
-    dout << sep_set("\n") << my_instance;
+    dout << ugly::sep_set("\n") << my_instance;
     
     auto my_instance2 = MyStruct2{6, 9, "instance 2"};
     dout << my_instance2 << '\n';
@@ -37,5 +36,5 @@ int main() {
     s.push(3);
     s.push(9);
     
-    dout << wrap_off << s;
+    dout << ugly::wrap_off << s;
 }

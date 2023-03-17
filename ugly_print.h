@@ -73,16 +73,16 @@ namespace ugly::cmp {
      * @return t == u, if expr "t == u" is well-defined boolean.
      * false otherwise.
      */
-     template<typename T, typename U>
-     constexpr auto is_eq_universal(T &&t, U &&u) noexcept -> bool {
-         if constexpr (decltype(detail::is_eq_universal(
-                 std::forward<T>(t), std::forward<U>(u)))::value)
-         {
-             return t == u;
-         }
-         
-         return false;
-     }
+    template<typename T, typename U>
+    constexpr auto is_eq_universal(T &&t, U &&u) noexcept -> bool {
+        if constexpr (decltype(detail::is_eq_universal(
+                std::forward<T>(t), std::forward<U>(u)))::value)
+        {
+            return t == u;
+        }
+        
+        return false;
+    }
 }
 
 // is_unary_pred template meta function
@@ -106,7 +106,7 @@ namespace ugly::tmf {
     template<template<class> class TTP>
     struct is_unary_pred {
         constexpr static bool value =
-        decltype(detail::is_unary_pred_impl(std::declval<TTP<int>>()))::value;
+                decltype(detail::is_unary_pred_impl(std::declval<TTP<int>>()))::value;
     };
     
     template<template<class> class TTP>
@@ -119,7 +119,7 @@ namespace ugly::tmf {
     template<template<class> class TTP, template<class> class... TTPs>
     struct is_all_unary_pred {
         constexpr static bool value =
-        is_unary_pred_v<TTP> and is_all_unary_pred<TTPs...>::value;
+                is_unary_pred_v<TTP> and is_all_unary_pred<TTPs...>::value;
     };
     
     template<template<class> class TTP>
@@ -138,7 +138,7 @@ namespace ugly::tmf {
 // is_unary_pred template meta function end
 
 namespace ugly::tmf::detail {
-
+    
     struct unary_predicates_enum_base {};
     
     template<template<class> class FirstUnaryPred,
@@ -151,7 +151,7 @@ namespace ugly::tmf::detail {
         
         template<typename T>
         using now [[maybe_unused]] = FirstUnaryPred<T>;
-    
+        
         static_assert(is_unary_pred_v<FirstUnaryPred>,
                       "The template parameters should take one type param "
                       "and return a boolean value by ::value");
@@ -164,7 +164,7 @@ namespace ugly::tmf::detail {
         
         template<typename T>
         using now [[maybe_unused]] = FirstUnaryPred<T>;
-    
+        
         static_assert(is_all_unary_pred_v<FirstUnaryPred, UnaryPreds...>,
                       "The template parameters should take one type param "
                       "and return a boolean value by ::value");
@@ -184,10 +184,10 @@ namespace ugly::tmf {
     template<typename T, typename PredPriority>
     struct priority_test {
         static_assert(std::is_base_of<
-                unary_predicates_priorities_base, PredPriority
-                >::value,
-                "The 2nd template argument should be the instance type of "
-                "the template ugly::tmf::unary_predicates_priorities");
+                              unary_predicates_priorities_base, PredPriority
+                      >::value,
+                      "The 2nd template argument should be the instance type of "
+                      "the template ugly::tmf::unary_predicates_priorities");
         
         constexpr static int priority =
                 PredPriority::template now<T>::value ? 0 :
@@ -382,7 +382,7 @@ namespace ugly::tmf::detail {
             decltype(std::declval<T>().begin() == std::declval<T>().end()),
             decltype(++std::declval<T>().begin()),
             decltype(*std::declval<T>().begin())
-            >, yes>
+    >, yes>
     is_container(T) {
         return yes{};
     }
@@ -407,7 +407,7 @@ namespace ugly::tmf::detail {
             decltype(std::declval<T>().pop()),
             decltype(std::declval<T>().top()),
             decltype(std::declval<T>().empty())
-            >, yes>
+    >, yes>
     is_stack_like(T) {
         return yes{};
     }
@@ -457,7 +457,7 @@ namespace ugly::tmf {
             is_container,
             is_stack_like,
             is_queue_like
-            >;
+    >;
 }
 
 namespace ugly::tmf {
@@ -638,7 +638,7 @@ namespace ugly::impl {
                << ')';
             return ss.str();
         }
-
+        
         else {
             ss << "<object at " << &t << " with >10 members>";
             return ss.str();
@@ -665,12 +665,12 @@ namespace ugly::impl {
         } else if constexpr (RT::mem_num == 3) {
             const auto& [a, b, c] = t;
             ss << '(' << decay_to_str(a) << ", " << decay_to_str(b) << ", "
-                      << decay_to_str(c) << ')';
+               << decay_to_str(c) << ')';
             return ss.str();
         } else if constexpr (RT::mem_num == 4) {
             const auto& [a, b, c, d] = t;
             ss << '(' << decay_to_str(a) << ", " << decay_to_str(b) << ", "
-                      << decay_to_str(c) << ", " << decay_to_str(d) << ')';
+               << decay_to_str(c) << ", " << decay_to_str(d) << ')';
             return ss.str();
         } else if constexpr (RT::mem_num == 5) {
             const auto& [a, b, c, d, e] = t;
@@ -732,6 +732,10 @@ namespace ugly::impl {
     inline auto decay_to_str(T &&t)
     -> std::enable_if_t<match_with_v<T, tmf::is_container>, std::string>
     {
+        if (t.begin() == t.end()) {
+            return std::string{"[]"};
+        }
+        
         std::stringstream ss;
         ss << "[";
         for (auto it = t.begin(); it != t.end(); ++it) {
@@ -838,12 +842,10 @@ namespace ugly {
 
 namespace ugly::cmd {
     class SepSetter {
-        friend auto sep_set(std::string) -> SepSetter;
-        
         std::string sep_;
-        
+    public:
         explicit SepSetter(std::string sep) : sep_(std::move(sep)) {}
-        
+    
     public:
         [[nodiscard]]
         const std::string& sep() const {
@@ -873,7 +875,7 @@ namespace ugly {
     class Printer {
         Printer() noexcept = default;
         
-        std::string sep{" "};
+        std::string sep{"\n"};
         bool flush_rule = true;
         bool wrap_message_rule = true;
     
@@ -927,24 +929,24 @@ namespace ugly {
     inline Printer& dout = Printer::get();
 }
 
-namespace ugly::cmd {
+namespace ugly {
     
     [[maybe_unused]]
-    auto sep_set(std::string sep) -> SepSetter {
-        return SepSetter(std::move(sep));
+    auto sep_set(std::string sep) -> cmd::SepSetter {
+        return cmd::SepSetter(std::move(sep));
     }
     
     [[maybe_unused]]
-    inline constexpr auto flush_on = FlushRuleSetter(true);
+    inline constexpr auto flush_on = cmd::FlushRuleSetter(true);
     
     [[maybe_unused]]
-    inline constexpr auto flush_off = FlushRuleSetter(false);
+    inline constexpr auto flush_off = cmd::FlushRuleSetter(false);
     
     [[maybe_unused]]
-    inline constexpr auto wrap_on = WrapMessageRuleSetter(true);
+    inline constexpr auto wrap_on = cmd::WrapMessageRuleSetter(true);
     
     [[maybe_unused]]
-    inline constexpr auto wrap_off = WrapMessageRuleSetter(false);
+    inline constexpr auto wrap_off = cmd::WrapMessageRuleSetter(false);
 }
 
 #endif
