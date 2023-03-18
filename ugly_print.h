@@ -2,6 +2,7 @@
 #define UGLY_PRINT_UGLY_PRINT_H
 
 #include <iostream>
+#include <regex>
 #include <string>
 #include <sstream>
 #include <type_traits>
@@ -46,7 +47,7 @@ namespace ugly::tmf {
     template<typename...>
     inline constexpr bool true_v = true;
     
-    template<typename...>
+    template<typename>
     struct true_t {
         constexpr static bool value = true;
     };
@@ -211,49 +212,6 @@ namespace ugly::tmf {
     template<typename T, typename PredPriority>
     using priority_test_t =
             typename priority_test<T, PredPriority>::match_type;
-}
-
-namespace ugly::basic {
-    template<typename T>
-    inline auto decay_to_str(T c)
-    -> std::enable_if_t<std::is_same_v<T, char>, std::string>
-    {
-        std::stringstream ss;
-        ss << "'" << c << "'";
-        return ss.str();
-    }
-    
-    [[maybe_unused]]
-    inline auto decay_to_str(const std::string &s) -> std::string {
-        std::stringstream ss;
-        ss << "\"" << s << "\"";
-        return ss.str();
-    }
-}
-
-namespace ugly::tmf::detail {
-    template<typename T>
-    inline std::enable_if_t<
-            true_v<decltype(basic::decay_to_str(std::declval<T>()))>,
-            yes>
-    is_basic_rule_defined(T) {
-        return yes{};
-    }
-    
-    [[maybe_unused]]
-    inline no is_basic_rule_defined(...) {
-        return no{};
-    }
-}
-
-namespace ugly::tmf {
-    template<typename T>
-    struct is_basic_rule_defined {
-        constexpr static bool value =
-                decltype(detail::is_basic_rule_defined(std::declval<T>()))
-                ::value;
-    };
-    
 }
 
 namespace ugly::tmf::detail {
@@ -449,7 +407,6 @@ namespace ugly::tmf {
 
 namespace ugly::tmf {
     using priority_set = unary_predicates_priorities<
-            is_basic_rule_defined,
             is_printable,
             is_well_pair,
             is_named_tuple,
@@ -493,15 +450,10 @@ namespace ugly {
     inline constexpr bool match_with_v = match_with<T, P>::value;
 }
 
+/**
+ * Implementation of ugly::decay_to_str.
+ */
 namespace ugly::impl {
-    
-    template<typename T>
-    inline auto decay_to_str(T &&t)
-    -> std::enable_if_t<match_with_v<T, tmf::is_basic_rule_defined>,
-            std::string>
-    {
-        return basic::decay_to_str(std::forward<T>(t));
-    }
     
     template<typename T>
     inline auto decay_to_str(T &&t)
@@ -837,6 +789,39 @@ namespace ugly {
     [[maybe_unused]]
     inline auto decay_to_str(T&& t, std::size_t head_size) -> std::string {
         return impl::decay_to_str(std::forward<T>(t), head_size);
+    }
+}
+/**
+ * Implementation of ugly::decay_to_str end.
+ */
+
+/**
+ * Implementation of ugly::fmt.
+ */
+namespace ugly::impl {
+    template<typename T>
+    [[maybe_unused]]
+    void fmt_helper(std::string &string_template, T &&val) {
+        auto pat = std::regex(R"(\{[^\}]*\})");
+        auto match = std::smatch();
+        if (not std::regex_search(string_template, match, pat)) {
+            return;
+        }
+        auto policy = match.str();
+        if (policy == "{}") {
+            string_template =
+                    match.prefix().str() + decay_to_str(std::forward<T>(val))
+                    + match.suffix().str();
+        }
+    }
+}
+
+namespace ugly {
+    template<typename... Args>
+    [[maybe_unused]]
+    std::string fmt(std::string string_template, Args&&... args) {
+        (impl::fmt_helper(string_template, std::forward<Args>(args)), ...);
+        return string_template;
     }
 }
 
