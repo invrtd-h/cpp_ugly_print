@@ -48,9 +48,81 @@ namespace ugly::detail {
 }
 
 /**
+ * to_str function declaration.
+ */
+namespace ugly::detail {
+    /**
+     * Universal to_str function.
+     * @return std::string object that represents that object.
+     */
+    template<typename T>
+    auto to_str(const T&) -> std::string;
+}
+
+/**
+ * definitions for some basic rules.
+ */
+namespace ugly::detail {
+    template<typename U1, typename U2>
+    [[maybe_unused]]
+    auto to_str_basic(const std::pair<U1, U2>& t) -> std::string {
+        return str_cat("<", to_str(t.first), ", ", to_str(t.second), ">");
+    }
+    
+    template<typename T>
+    [[maybe_unused]]
+    auto to_str_basic(const std::stack<T>& t) -> std::string {
+        if (t.empty()) {
+            return "[]";
+        }
+        
+        std::string ret("[");
+        
+        while (!t.empty()) {
+            ret += to_str(t.top());
+            ret += " > ";
+            t.pop();
+        }
+        
+        ret.pop_back();
+        ret.pop_back();
+        ret.back() = ']';
+        
+        return ret;
+    }
+    
+    template<typename T>
+    [[maybe_unused]]
+    auto to_str_basic(const std::queue<T>& t) -> std::string {
+        if (t.empty()) {
+            return "[]";
+        }
+        
+        std::string ret("[");
+        
+        while (!t.empty()) {
+            ret += to_str(t.front());
+            ret += " > ";
+            t.pop();
+        }
+        
+        ret.pop_back();
+        ret.pop_back();
+        ret.back() = ']';
+        
+        return ret;
+    }
+}
+
+/**
  * Definitions for some concepts.
  */
 namespace ugly::detail {
+    
+    template<typename T>
+    concept basic_rule_defined = requires (T t) {
+        to_str_basic(t);
+    };
     
     template<typename T>
     concept printable = requires (T t) {
@@ -81,13 +153,6 @@ namespace ugly::detail {
  * Definitions for the to_str function.
  */
 namespace ugly::detail {
-    
-    /**
-     * Universal to_str function.
-     * @return std::string object that represents that object.
-     */
-    template<typename T>
-    auto to_str(const T&) -> std::string;
     
     auto to_str_printable(const printable auto& t) -> std::string {
         std::stringstream ss;
@@ -290,12 +355,14 @@ namespace ugly::detail {
     }
     
     auto to_str_rule_undefined(const auto& t) -> std::string {
-        return str_cat("<object at ", to_str(&t), ">");
+        return str_cat("<unknown object at ", to_str(&t), ">");
     }
     
     template<typename T>
     auto to_str(const T& t) -> std::string {
-        if constexpr (printable<T>) {
+        if constexpr (basic_rule_defined<T>) {
+            return to_str_basic(t);
+        } else if constexpr (printable<T>) {
             return to_str_printable(t);
         } else if constexpr (container<T>) {
             return to_str_container(t);
@@ -324,17 +391,17 @@ namespace ugly::detail {
         }
         
         std::string ret("[");
-    
+        
         while (!t.empty()) {
             ret += to_str(t.top());
             ret += " > ";
             t.pop();
         }
-    
+        
         ret.pop_back();
         ret.pop_back();
         ret.back() = ']';
-    
+        
         return ret;
     }
     
@@ -402,7 +469,16 @@ namespace ugly::detail {
     
     public:
         Printer& operator<<(const auto& t) {
-            std::cout << fmt("debug!/{}/\n", t);
+            std::cout << ugly::detail::fmt("debug!/{}/", t);
+            std::cout << std::endl;
+            return *this;
+        }
+        
+        template<typename... T>
+        [[maybe_unused]]
+        Printer& fmtln(const std::string& s_fmt, const T&... t) {
+            std::cout << ugly::detail::fmt(s_fmt, t...);
+            std::cout << std::endl;
             return *this;
         }
     };
@@ -412,7 +488,7 @@ namespace ugly::detail {
 
 namespace ugly::detail {
     [[maybe_unused]]
-    decltype(auto) drop(const auto& t) {
+    inline decltype(auto) drop(const auto& t) {
         std::cout << to_str(t);
         return t;
     }
