@@ -5,12 +5,23 @@ template<typename T>
 struct TD;
 
 int main() {
-    dout << 1 << 2 << "str" << std::pair<int, char>(3, 'k');
+    auto vec1 = std::vector{1, 2, 3};
+    auto vec2 = std::vector{
+        std::vector{1, 2, 3},
+        std::vector{4, 5, 6},
+        std::vector{7, 8}
+    };
+    auto vec3 = std::vector{
+        std::vector{
+            std::vector{1, 2},
+            std::vector{3, 4},
+        }, std::vector{
+            std::vector{5, 6},
+            std::vector{7},
+        }
+    };
     
-    std::unordered_map<int, int> map{{1, 1}, {3, 3}, {6, 7}};
-    std::pair<const int, int> y{1, 3};
-    for (auto &x : map) {
-        dout << x;
-    }
-    dout << map;
+    dout << vec1;
+    dout << vec2;
+    dout << vec3;
 }
