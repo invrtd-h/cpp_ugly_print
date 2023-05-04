@@ -134,6 +134,12 @@ namespace ugly::detail {
         
         return ret;
     }
+    
+    template<typename T>
+    [[maybe_unused]]
+    auto to_str_basic(const std::tuple<T>& t) -> std::string {
+        return str_cat("(", to_str(get<0>(t)), ")");
+    }
 }
 
 /**
