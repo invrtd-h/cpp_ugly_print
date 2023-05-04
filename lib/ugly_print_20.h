@@ -151,6 +151,11 @@ namespace ugly::detail {
         std::cout << t;
     };
     
+    template<typename T>
+    concept to_string_defined = requires (T t) {
+        {t.to_string()} -> std::same_as<std::string>;
+    };
+    
     /**
      * A container concept.\n
      * If t.begin() and t.end() is legal expression,
@@ -213,6 +218,11 @@ namespace ugly::detail {
         return ss.str();
     }
     
+    auto to_str_custom_rule_defined
+    (const to_string_defined auto& t) -> std::string {
+        return t.to_string();
+    }
+    
     auto to_str_container(const container auto& t,
                           int dim = container_dim_v<std::decay_t<decltype(t)>>) -> std::string
     {
@@ -222,9 +232,9 @@ namespace ugly::detail {
             if (t.begin() == t.end()) {
                 return std::string("[]");
             }
-    
+            
             auto ret = std::string("[");
-    
+            
             int idx = 0;
             for (auto it = t.begin(); it != t.end(); ++it, ++idx) {
                 auto cat = str_cat(to_str(*it), ", ");
@@ -232,18 +242,18 @@ namespace ugly::detail {
             }
             ret.pop_back();
             ret.back() = ']';
-    
+            
             return ret;
         };
-    
+        
         auto to_str_container_md = [dim](const container auto& t_) {
             constexpr int dim_target = container_dim_v<std::decay_t<decltype(*t_.begin())>>;
             if (t_.begin() == t_.end()) {
                 return std::string("[]");
             }
-        
+            
             auto ret = std::string("[\n");
-        
+            
             int idx = 0;
             for (auto it = t_.begin(); it != t_.end(); ++it, ++idx) {
                 auto cat = str_cat(str_repetition("    ", dim - dim_target), to_str_container(*it, dim), ",\n");
@@ -254,7 +264,7 @@ namespace ugly::detail {
             ret.append("\n");
             ret.append(str_repetition("    ", dim - dim_target - 1));
             ret.append("]");
-        
+            
             return ret;
         };
         
@@ -451,6 +461,8 @@ namespace ugly::detail {
     auto to_str(const T& t) -> std::string {
         if constexpr (basic_rule_defined<T>) {
             return to_str_basic(t);
+        } else if constexpr (to_string_defined<T>) {
+            return to_str_custom_rule_defined(t);
         } else if constexpr (printable<T>) {
             return to_str_printable(t);
         } else if constexpr (container<T>) {
@@ -514,6 +526,19 @@ namespace ugly::detail {
     }
 }
 
+namespace ugly::detail::util {
+    template<typename T>
+    struct [[maybe_unused]] Numbered {
+        std::size_t idx;
+        T t;
+        
+        [[nodiscard]]
+        auto to_string() const -> std::string {
+            return str_cat(std::to_string(idx), ": ", to_str(t));
+        }
+    };
+}
+
 namespace ugly::detail {
     class Printer {
     
@@ -554,9 +579,6 @@ namespace ugly::detail {
     Printer dout;
 }
 
-
-
-
 /**
  * Final export
  */
@@ -566,7 +588,5 @@ namespace ugly {
     using detail::dout;
     using detail::drop;
 }
-
-using ugly::dout;
 
 #endif
