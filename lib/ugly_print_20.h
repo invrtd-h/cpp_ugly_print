@@ -267,7 +267,7 @@ namespace ugly::detail {
         };
         
         auto to_str_container_md = [dim](const container auto& t_) {
-            constexpr int dim_target = container_dim_v<std::decay_t<decltype(*ran::begin(t_))>>;
+            constexpr int dim_target = container_dim_v<std::remove_cvref_t<decltype(*ran::begin(t_))>>;
             if (ran::begin(t_) == ran::end(t_)) {
                 return std::string("[]");
             }

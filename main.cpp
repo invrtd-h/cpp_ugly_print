@@ -20,7 +20,11 @@ void test() {
             {3, 9, 1},
     };
     
-    
+    assert(dout.std_repr(obj2) == "[\n"
+                                  "    [9, 1, 3],\n"
+                                  "    [1, 3, 9],\n"
+                                  "    [3, 9, 1]\n"
+                                  "]");
 }
 
 int main() {
@@ -29,11 +33,7 @@ int main() {
     auto tup1 = std::make_tuple(1, 2, "str-val");
     dout << tup1;
     
-    auto vec1 = std::vector{1, 5, 3, 8};
-    dout << vec1;
-    
     dout.set_null_val(1);
-    dout << vec1;
     dout << 1;
     dout << 2;
 }
