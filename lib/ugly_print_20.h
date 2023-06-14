@@ -2,10 +2,12 @@
 #define UGLY_PRINT_UGLY_PRINT_20_H
 
 #include <concepts>
+#include <coroutine>
 #include <iostream>
 #include <queue>
 #include <sstream>
 #include <stack>
+#include <unordered_set>
 #include <utility>
 #include <regex>
 #include <typeinfo>
@@ -18,24 +20,22 @@
  * and it was slow.)
  */
 namespace ugly::detail {
+    namespace ran = std::ranges;
     
     /**
      * A template guide for tracking template deductions.\n\n
-     * How to use:
-     * Since this class is not defined,
-     *
      */
     template<typename>
     class [[maybe_unused]] TD;
     
     
     [[maybe_unused]]
-    inline std::size_t str_len(const std::string& str) noexcept {
+    inline auto str_len(const std::string& str) noexcept -> std::size_t {
         return str.size();
     }
     
     [[maybe_unused]]
-    inline constexpr std::size_t str_len(const char* str) noexcept {
+    inline constexpr auto str_len(const char* str) noexcept {
         std::size_t ret = 0;
         while (str[ret]) {
             ret++;
@@ -46,7 +46,7 @@ namespace ugly::detail {
     static_assert(str_len("what") == 4);
     
     template<std::convertible_to<std::string>... T>
-    inline std::string str_cat(const T&... strs) {
+    inline auto str_cat(const T&... strs) {
         std::size_t size = (str_len(std::string(strs)) + ...);
         std::string ret;
         ret.reserve(size);
@@ -56,7 +56,7 @@ namespace ugly::detail {
         return ret;
     }
     
-    constexpr inline auto str_repetition(const std::string& s, std::size_t time) -> std::string {
+    inline constexpr auto str_rep(const std::string& s, std::size_t time) -> std::string {
         std::string ret;
         ret.reserve(s.size() * time);
         
@@ -73,7 +73,9 @@ namespace ugly::detail {
  */
 namespace ugly::detail {
     /**
-     * Universal to_str function.
+     * Universal to_str function.\n
+     * If the rule for printing that object is defined, follow the printing rule.\n
+     * If not, just print the address of the object.
      * @return std::string object that represents that object.
      */
     template<typename T>
@@ -87,13 +89,13 @@ namespace ugly::detail {
  */
 namespace ugly::detail {
     template<typename U1, typename U2>
-    auto to_str_basic(const std::pair<U1, U2>& t) -> std::string {
+    inline auto to_str_basic(const std::pair<U1, U2>& t) -> std::string {
         return str_cat("<", to_str(t.first), ", ", to_str(t.second), ">");
     }
     
     template<typename T>
     [[maybe_unused]]
-    auto to_str_basic(std::stack<T> t) -> std::string {
+    inline auto to_str_basic(std::stack<T> t) -> std::string {
         if (t.empty()) {
             return "[]";
         }
@@ -115,7 +117,7 @@ namespace ugly::detail {
     
     template<typename T>
     [[maybe_unused]]
-    auto to_str_basic(std::queue<T> t) -> std::string {
+    inline auto to_str_basic(std::queue<T> t) -> std::string {
         if (t.empty()) {
             return "[]";
         }
@@ -135,10 +137,24 @@ namespace ugly::detail {
         return ret;
     }
     
-    template<typename T>
+    template<typename... Args>
     [[maybe_unused]]
-    auto to_str_basic(const std::tuple<T>& t) -> std::string {
-        return str_cat("(", to_str(get<0>(t)), ")");
+    inline auto to_str_basic(const std::tuple<Args...>& t) -> std::string {
+        
+        constexpr auto to_str_add_colon = [](const auto& t) {
+            return str_cat(to_str(t), ", ");
+        };
+        
+        constexpr auto to_str_multi =
+                [to_str_add_colon]<typename... Ts>(const Ts&... t) {
+            auto ret = str_cat(to_str_add_colon(t)...);
+            ret.pop_back();
+            ret.pop_back();
+            return ret;
+        };
+        
+        auto ret = std::apply(to_str_multi, t);
+        return str_cat("(", ret, ")");
     }
 }
 
@@ -153,33 +169,22 @@ namespace ugly::detail {
     };
     
     template<typename T>
-    concept printable = requires (T t) {
+    concept printable = requires (const T& t) {
         std::cout << t;
-    };
+    } && !std::is_array_v<T>;
     
     template<typename T>
     concept to_string_defined = requires (T t) {
         {t.to_string()} -> std::same_as<std::string>;
     };
     
-    /**
-     * A container concept.\n
-     * If t.begin() and t.end() is legal expression,
-     * then t is a container.
-     * @tparam T tparam
-     */
     template<typename T>
-    concept container = requires (T t) {
-        t.begin();
-        t.end();
-    };
+    concept container = std::ranges::range<T>;
     
-    /**
-     * A concept for naive arrays.
-     * @tparam T tparam
-     */
     template<typename T>
-    concept array = std::is_array_v<T>;
+    concept pointer_like = requires (T t) {
+        *t;
+    };
     
     template<typename T>
     concept named_tuple = requires {
@@ -193,9 +198,16 @@ namespace ugly::detail {
 }
 
 namespace ugly::detail {
+    template<typename T>
+    concept hashable = requires (T t) {
+        {std::hash<T>()(t)} -> std::same_as<std::size_t>;
+    };
+}
+
+namespace ugly::detail {
     template<container T>
     struct container_dim {
-        using value_type = std::decay_t<decltype(*std::declval<T>().begin())>;
+        using value_type = std::remove_cvref_t<decltype(*ran::begin(std::declval<T&>()))>;
         
         consteval static int calc_value() {
             if constexpr (container<value_type>) {
@@ -207,10 +219,12 @@ namespace ugly::detail {
     };
     
     template<container T>
-    constexpr int container_dim_v = container_dim<T>::calc_value();
+    constexpr inline int container_dim_v = container_dim<T>::calc_value();
     
     static_assert(container_dim_v<std::vector<int>> == 1);
     static_assert(container_dim_v<std::vector<std::vector<int>>> == 2);
+    static_assert(container_dim_v<int[3]> == 1);
+    static_assert(container_dim_v<int[9][1][3]> == 3);
 }
 
 /**
@@ -218,31 +232,31 @@ namespace ugly::detail {
  */
 namespace ugly::detail {
     
-    auto to_str_printable(const printable auto& t) -> std::string {
+    inline auto to_str_printable(const printable auto& t) -> std::string {
         std::stringstream ss;
         ss << t;
         return ss.str();
     }
     
-    auto to_str_custom_rule_defined
+    inline auto to_str_custom_rule_defined
     (const to_string_defined auto& t) -> std::string {
         return t.to_string();
     }
     
-    auto to_str_container(const container auto& t,
-                          int dim = container_dim_v<std::decay_t<decltype(t)>>) -> std::string
+    inline auto to_str_container(const container auto& t,
+                          int dim = container_dim_v<std::remove_cvref_t<decltype(t)>>) -> std::string
     {
         constexpr auto to_str_container_1d = [](const container auto& t) {
-            static_assert(!container<decltype(*t.begin())>);
+            static_assert(!container<decltype(*ran::begin(t))>);
             
-            if (t.begin() == t.end()) {
+            if (ran::begin(t) == ran::end(t)) {
                 return std::string("[]");
             }
             
             auto ret = std::string("[");
             
             int idx = 0;
-            for (auto it = t.begin(); it != t.end(); ++it, ++idx) {
+            for (auto it = ran::begin(t); it != ran::end(t); ++it, ++idx) {
                 auto cat = str_cat(to_str(*it), ", ");
                 ret.append(std::move(cat));
             }
@@ -253,56 +267,36 @@ namespace ugly::detail {
         };
         
         auto to_str_container_md = [dim](const container auto& t_) {
-            constexpr int dim_target = container_dim_v<std::decay_t<decltype(*t_.begin())>>;
-            if (t_.begin() == t_.end()) {
+            constexpr int dim_target = container_dim_v<std::decay_t<decltype(*ran::begin(t_))>>;
+            if (ran::begin(t_) == ran::end(t_)) {
                 return std::string("[]");
             }
             
             auto ret = std::string("[\n");
             
             int idx = 0;
-            for (auto it = t_.begin(); it != t_.end(); ++it, ++idx) {
-                auto cat = str_cat(str_repetition("    ", dim - dim_target), to_str_container(*it, dim), ",\n");
+            for (auto it = ran::begin(t_); it != ran::end(t_); ++it, ++idx) {
+                auto cat = str_cat(str_rep("    ", dim - dim_target), to_str_container(*it, dim), ",\n");
                 ret.append(std::move(cat));
             }
             ret.pop_back();
             ret.pop_back();
             ret.append("\n");
-            ret.append(str_repetition("    ", dim - dim_target - 1));
+            ret.append(str_rep("    ", dim - dim_target - 1));
             ret.append("]");
             
             return ret;
         };
         
-        if constexpr (!container<decltype(*t.begin())>) {
+        if constexpr (!container<decltype(*ran::begin(t))>) {
             return to_str_container_1d(t);
         } else {
             return to_str_container_md(t);
         }
     }
     
-    template<array T>
-    auto to_str_array(const T& t) -> std::string {
-        constexpr std::size_t SIZE = std::extent_v<T>;
-        
-        if (SIZE == 0) {
-            return "[]";
-        }
-        
-        auto ret = std::string("[");
-        
-        for (int i = 0; i < SIZE; ++i) {
-            auto cat = str_cat(std::to_string(i), ": ", to_str(t[i]), ", ");
-            ret.append(std::move(cat));
-        }
-        ret.pop_back();
-        ret.back() = ']';
-        
-        return ret;
-    }
-    
     template<named_tuple T>
-    auto to_str_named_tuple(const T& t) -> std::string {
+    inline auto to_str_named_tuple(const T& t) -> std::string {
         constexpr int SIZE = std::extent_v<decltype(T::mem_names)>;
         const auto& names = T::mem_names;
         
@@ -401,7 +395,7 @@ namespace ugly::detail {
     }
     
     template<unpackable T>
-    auto to_str_unpackable(const T& t) -> std::string {
+    inline auto to_str_unpackable(const T& t) -> std::string {
         constexpr int n = T::mem_num;
         
         std::stringstream ss;
@@ -459,12 +453,12 @@ namespace ugly::detail {
         }
     }
     
-    auto to_str_rule_undefined(const auto& t) -> std::string {
+    inline auto to_str_rule_undefined(const auto& t) -> std::string {
         return str_cat("<obj ", typeid(t).name(), " @", to_str(&t), ">");
     }
     
     template<typename T>
-    auto to_str(const T& t) -> std::string {
+    inline auto to_str(const T& t) -> std::string {
         if constexpr (basic_rule_defined<T>) {
             return to_str_basic(t);
         } else if constexpr (to_string_defined<T>) {
@@ -473,8 +467,6 @@ namespace ugly::detail {
             return to_str_printable(t);
         } else if constexpr (container<T>) {
             return to_str_container(t);
-        } else if constexpr (array<T>) {
-            return to_str_array(t);
         } else if constexpr (named_tuple<T>) {
             return to_str_named_tuple(t);
         } else if constexpr (unpackable<T>) {
@@ -485,11 +477,33 @@ namespace ugly::detail {
             return to_str_rule_undefined(t);
         }
     }
+    
+    template<typename T>
+    [[maybe_unused]]
+    inline auto get_str_policy(const T& t) -> std::string {
+        if constexpr (basic_rule_defined<T>) {
+            return "to_str_basic";
+        } else if constexpr (to_string_defined<T>) {
+            return "to_str_custom_rule_defined";
+        } else if constexpr (printable<T>) {
+            return "to_str_printable";
+        } else if constexpr (container<T>) {
+            return "to_str_container";
+        } else if constexpr (named_tuple<T>) {
+            return "to_str_named_tuple";
+        } else if constexpr (unpackable<T>) {
+            return "to_str_unpackable";
+        }
+    
+        else {
+            return "to_str_rule_undefined";
+        }
+    }
 }
 
 namespace ugly::detail {
     template<typename T>
-    void fmt_helper(std::string &string_template, const T& val) {
+    inline void fmt_helper(std::string &string_template, const T& val) {
         auto pat = std::regex(R"(\{[^\}]*\})");
         auto match = std::smatch();
         if (not std::regex_search(string_template, match, pat)) {
@@ -518,7 +532,7 @@ namespace ugly::detail {
      */
     template<typename... Args>
     [[maybe_unused]]
-    std::string fmt(std::string string_template, const Args&... args) {
+    inline std::string fmt(std::string string_template, const Args&... args) {
         (fmt_helper(string_template, args), ...);
         return string_template;
     }
@@ -534,6 +548,69 @@ namespace ugly::detail {
 
 namespace ugly::detail::util {
     template<typename T>
+    struct [[maybe_unused]] Gen {
+        struct promise_type {
+            T current_value;
+            
+            promise_type() = default;
+            ~promise_type() noexcept = default;
+            
+            auto initial_suspend() {
+                return std::suspend_always{};
+            }
+            auto final_suspend() noexcept {
+                return std::suspend_always{};
+            }
+            auto get_return_object() {
+                return Gen{handle_type::from_promise(*this)};
+            }
+            auto yield_value(T& value) {
+                current_value = value;
+                return std::suspend_always{};
+            }
+            auto yield_value(T&& value) {
+                current_value = std::move(value);
+                return std::suspend_always{};
+            }
+            void return_void() {}
+            void unhandled_exception() {
+                std::exit(1);
+            };
+        };
+        
+        using handle_type = std::coroutine_handle<promise_type>;
+        handle_type coro;
+    
+        [[maybe_unused]]
+        explicit Gen(handle_type h) : coro(h) {}
+        ~Gen() noexcept {
+            if (coro) coro.destroy();
+        }
+        Gen(const Gen&) = delete;
+        Gen& operator=(const Gen&) = delete;
+        Gen(Gen&& rhs) noexcept : coro(rhs.coro) {
+            rhs.coro = nullptr;
+        }
+        Gen& operator=(Gen&& rhs) noexcept {
+            coro = rhs.coro;
+            rhs.coro = nullptr;
+            return *this;
+        }
+        
+        [[maybe_unused]]
+        T next() {
+            coro.resume();
+            return coro.promise().current_value;
+        }
+    };
+    
+    inline Gen<int> iota_basic(int n) {
+        for (int i = 0; i < n; ++i) {
+            co_yield i;
+        }
+    }
+    
+    template<typename T>
     struct [[maybe_unused]] Numbered {
         std::size_t idx;
         T t;
@@ -547,42 +624,54 @@ namespace ugly::detail::util {
 
 namespace ugly::detail {
     class Printer {
+        std::unordered_set<std::size_t> null_set;
     
     public:
+        auto std_repr(const auto& t) const -> std::string {
+            using Type = std::decay_t<decltype(t)>;
+            if constexpr (hashable<Type>) {
+                auto hash_f = std::hash<Type>();
+                if (null_set.contains(hash_f(t))) {
+                    return "null-val";
+                }
+                return to_str(t);
+            } else {
+                return to_str(t);
+            }
+        }
+        
         [[maybe_unused]]
         Printer& operator<<(const auto& t) {
-            std::cout << ugly::detail::fmt("/{}/", t) << std::endl;
+            auto str = std_repr(t);
+            std::cout << ugly::detail::fmt("/{}/", str) << std::endl;
             return *this;
         }
         
         template<typename... T>
         [[maybe_unused]]
         Printer& fmtln(const std::string& s_fmt, const T&... t) {
-            std::cout << ugly::detail::fmt(s_fmt, t...) << std::endl;
-            return *this;
-        }
-        
-        template<typename T>
-        [[maybe_unused]]
-        Printer& ln(const T& t) {
-            std::cout << to_str(t) << std::endl;
+            std::cout << fmt(s_fmt, std_repr(t)...) << std::endl;
             return *this;
         }
         
         [[maybe_unused]]
         decltype(auto) operator*(auto&& t) {
-            std::cout << ugly::detail::to_str(t) << std::endl;
+            std::cout << std_repr(t) << std::endl;
             return t;
         }
         
+        template<typename T>
         [[maybe_unused]]
-        decltype(auto) drop(auto&& t) {
-            std::cout << ugly::detail::to_str(t) << std::endl;
-            return t;
+        void set_null_val(T&& t) {
+            static_assert(hashable<std::decay_t<T>>,
+                    "The value that represents null should be hashable by std::hash");
+            
+            auto hash_f = std::hash<T>();
+            null_set.insert(hash_f(std::forward<T>(t)));
         }
     };
     
-    Printer dout;
+    inline Printer dout;
 }
 
 /**
