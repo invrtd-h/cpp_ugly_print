@@ -55,4 +55,12 @@ int main() {
     int n = 4;
     int *p = &n;
     dout << p;
+    
+    auto up = std::make_unique<double>(3.14);
+    dout << up;
+    
+    auto op = std::make_optional<double>(3.14);
+    dout << op;
 }
+
+static_assert(ugly::detail::pointer_like<std::optional<int>>);

@@ -187,8 +187,9 @@ namespace ugly::detail {
     concept container = std::ranges::range<T>;
     
     template<typename T>
-    concept pointer_like = std::convertible_to<T, bool> && requires (T t) {
+    concept pointer_like = requires (T t) {
         *t;
+        {static_cast<bool>(t)} -> std::convertible_to<bool>;
     };
     
     template<typename T>
@@ -310,7 +311,7 @@ namespace ugly::detail {
             ret.append("&: ");
             
             std::stringstream ss;
-            ss << static_cast<void *>(t);
+            ss << reinterpret_cast<const void * const>(t);
             ret.append(ss.str());
             
             ret.append(", *: ");
