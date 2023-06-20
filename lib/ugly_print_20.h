@@ -28,14 +28,13 @@ namespace ugly::detail {
     template<typename>
     class [[maybe_unused]] TD;
     
-    
     [[maybe_unused]]
-    inline auto str_len(const std::string& str) noexcept -> std::size_t {
+    inline constexpr auto str_len(const std::string& str) noexcept -> std::size_t {
         return str.size();
     }
     
     [[maybe_unused]]
-    inline constexpr auto str_len(const char* str) noexcept {
+    inline constexpr auto str_len(const char* str) noexcept -> std::size_t {
         std::size_t ret = 0;
         while (str[ret]) {
             ret++;
@@ -79,7 +78,7 @@ namespace ugly::detail {
      * @return std::string object that represents that object.
      */
     template<typename T>
-    auto to_str(const T&) -> std::string;
+    inline auto to_str(const T&) -> std::string;
 }
 
 /**
@@ -88,6 +87,12 @@ namespace ugly::detail {
  * the rule precedes any other rules.
  */
 namespace ugly::detail {
+    inline auto to_str_basic(const char* t) -> std::string {
+        std::stringstream ss;
+        ss << t;
+        return ss.str();
+    }
+    
     template<typename U1, typename U2>
     inline auto to_str_basic(const std::pair<U1, U2>& t) -> std::string {
         return str_cat("<", to_str(t.first), ", ", to_str(t.second), ">");
@@ -171,7 +176,7 @@ namespace ugly::detail {
     template<typename T>
     concept printable = requires (const T& t) {
         std::cout << t;
-    } && !std::is_array_v<T>;
+    } && !std::is_array_v<T> && !std::is_pointer_v<T>;
     
     template<typename T>
     concept to_string_defined = requires (T t) {
@@ -182,9 +187,12 @@ namespace ugly::detail {
     concept container = std::ranges::range<T>;
     
     template<typename T>
-    concept pointer_like = requires (T t) {
+    concept pointer_like = std::convertible_to<T, bool> && requires (T t) {
         *t;
     };
+    
+    template<typename T>
+    concept real_pointer = std::is_pointer_v<T>;
     
     template<typename T>
     concept named_tuple = requires {
@@ -292,6 +300,45 @@ namespace ugly::detail {
             return to_str_container_1d(t);
         } else {
             return to_str_container_md(t);
+        }
+    }
+    
+    template<pointer_like T>
+    inline auto to_str_pointer_like(const T& t) -> std::string {
+        if constexpr (real_pointer<T>) {
+            auto ret = std::string("");
+            ret.append("&: ");
+            
+            std::stringstream ss;
+            ss << static_cast<void *>(t);
+            ret.append(ss.str());
+            
+            ret.append(", *: ");
+            
+            if (!static_cast<bool>(t)) {
+                ret.append("NULL");
+            } else {
+                ret.append(to_str(*t));
+            }
+            
+            return ret;
+        } else {
+            auto ret = std::string("");
+            ret.append("&obj: ");
+    
+            std::stringstream ss;
+            ss << std::addressof(t);
+            ret.append(ss.str());
+    
+            ret.append(", *obj: ");
+    
+            if (!static_cast<bool>(t)) {
+                ret.append("NULL");
+            } else {
+                ret.append(to_str(*t));
+            }
+            
+            return ret;
         }
     }
     
@@ -467,6 +514,8 @@ namespace ugly::detail {
             return to_str_printable(t);
         } else if constexpr (container<T>) {
             return to_str_container(t);
+        } else if constexpr (pointer_like<T>) {
+            return to_str_pointer_like(t);
         } else if constexpr (named_tuple<T>) {
             return to_str_named_tuple(t);
         } else if constexpr (unpackable<T>) {
@@ -489,6 +538,8 @@ namespace ugly::detail {
             return "to_str_printable";
         } else if constexpr (container<T>) {
             return "to_str_container";
+        } else if constexpr (pointer_like<T>) {
+            return "to_str_pointer_like";
         } else if constexpr (named_tuple<T>) {
             return "to_str_named_tuple";
         } else if constexpr (unpackable<T>) {
