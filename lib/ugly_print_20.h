@@ -189,7 +189,7 @@ namespace ugly::detail {
     template<typename T>
     concept pointer_like = requires (T t) {
         *t;
-        {static_cast<bool>(t)} -> std::convertible_to<bool>;
+        static_cast<bool>(t);
     };
     
     template<typename T>
@@ -502,7 +502,9 @@ namespace ugly::detail {
     }
     
     inline auto to_str_rule_undefined(const auto& t) -> std::string {
-        return str_cat("<obj ", typeid(t).name(), " @", to_str(&t), ">");
+        std::stringstream ss;
+        ss << &t;
+        return str_cat("<obj ", typeid(t).name(), " @", ss.str(), ">");
     }
     
     template<typename T>
